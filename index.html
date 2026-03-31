@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Route Viewer</title>
+    
+    <!-- PWA Meta Tags for iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Маршрут">
+    <meta name="format-detection" content="telephone=no">
+    
+    <!-- Embedded Manifest (Data URI) -->
+    <link rel="manifest" href='data:application/manifest+json;base64,eyJuYW1lIjoiUm91dGUgVmlld2VyIiwic2hvcnRfbmFtZSI6IlJvdXRlIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiI0YyRjJGNyIsInRoZW1lX2NvbG9yIjoiI0YyRjJGNyIsImljb25zIjpbeyJzcmMiOiJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUIyWVd4MVpXUmxaQzFqWlhKMGFXWnBZMkYwWlM1aGJtUnliMlkwZG1Gc2RXVT0iLCJzaXplcyI6IjE5MngxOTIiLCJ0eXBlIjoiaW1hZ2Uvc3ZnK3htbCJ9XX0='>
+
+    <!-- Embedded Icon (Base64 SVG) -->
+    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cGF0aCBmaWxsPSIjMDA3QUZGIiBkPSJNMjU2IDBDMTE0LjYgMCAwIDExNC42IDAgMjU2czExNC42IDI1NiAyNTYgMjU2IDI1Ni0xMTQuNiAyNTYtMjU2UzM5Ny40IDAgMjU2IDB6bTAgNDEyYy04Ni4xIDAtMTU2LTY5LjktMTU2LTE1NnM2OS45LTE1NiAxNTYtMTU2IDE1NiA2OS45IDE1NiAxNTYtNjkuOSAxNTYtMTU2IDE1NnptLTQ4LTI0MGMtMjYuNSAwLTQ4IDIxLjUtNDggNDhzMjEuNSA0OCA0OCA0OCA0OC0yMS41IDQ4LTQ4LTIxLjUtNDgtNDgtNDh6Ii8+PC9zdmc+">
+
+    <style>
+        :root {
+            --ios-bg: #F2F2F7;
+            --ios-card: #FFFFFF;
+            --ios-blue: #007AFF;
+            --ios-gray: #8E8E93;
+            --ios-separator: #C6C6C8;
+            --ios-red: #FF3B30;
+            --ios-green: #34C759;
+            --safe-area-top: env(safe-area-inset-top);
+            --safe-area-bottom: env(safe-area-inset-bottom);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--ios-bg);
+            color: #000;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- Header --- */
+        header {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: calc(10px + var(--safe-area-top)) 20px 10px;
+            border-bottom: 0.5px solid rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 17px;
+            font-weight: 600;
+            margin: 0;
+            text-align: center;
+            flex-grow: 1;
+        }
+
+        .upload-btn {
+            background: var(--ios-blue);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: opacity 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .upload-btn:active {
+            opacity: 0.7;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* --- Route Summary Line (Moved Up) --- */
+        #route-summary-container {
+            display: none;
+            background: var(--ios-card);
+            border-radius: 12px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        
+        #route-summary-container.visible {
+            display: block;
+        }
+
+        .summary-label {
+            font-size: 12px;
+            color: var(--ios-gray);
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .summary-line {
+            font-size: 14px;
+            line-height: 1.4;
+            color: #000;
+            font-weight: 500;
+        }
+
+        .summary-separator {
+            color: var(--ios-gray);
+            margin: 0 6px;
+            font-weight: 300;
+        }
+
+        /* Кнопка навигации */
+        .nav-btn-container {
+            width: 100%;
+        }
+
+        .nav-btn {
+            background: var(--ios-green);
+            color: white;
+            width: 100%;
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            text-align: center;
+            text-decoration: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(52, 199, 89, 0.3);
+            opacity: 0.5;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .nav-btn.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* --- Main Content --- */
+        #route-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            padding-bottom: calc(20px + var(--safe-area-bottom));
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Info Card (Route Info) */
+        .info-card {
+            background: var(--ios-card);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .info-title { font-size: 15px; font-weight: 600; color: var(--ios-gray); margin-bottom: 4px; }
+        .info-value { font-size: 17px; font-weight: 500; margin-bottom: 8px; }
+        .info-desc { font-size: 15px; line-height: 1.4; color: #333; }
+
+        /* --- Route Cards --- */
+        .card {
+            background: var(--ios-card);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+
+        .card:active {
+            transform: scale(0.98);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 6px;
+        }
+
+        .card-title {
+            font-size: 17px;
+            font-weight: 600;
+            color: #000;
+            flex: 1;
+            padding-right: 10px;
+        }
+
+        .badge {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .badge-point { background: #E5F1FF; color: var(--ios-blue); }
+        .badge-segment { background: #FFF4E5; color: #FF9500; }
+
+        .card-subtitle {
+            font-size: 13px;
+            color: var(--ios-gray);
+            margin-bottom: 8px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .card-desc {
+            font-size: 15px;
+            color: #333;
+            line-height: 1.4;
+            margin-bottom: 12px;
+        }
+
+        .action-row {
+            display: flex;
+            justify-content: flex-end;
+            border-top: 0.5px solid rgba(0,0,0,0.05);
+            padding-top: 10px;
+            margin-top: 5px;
+        }
+
+        .map-link {
+            font-size: 14px;
+            color: var(--ios-blue);
+            text-decoration: none;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* --- Sights inside card --- */
+        .sights-preview {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 0.5px solid rgba(0,0,0,0.1);
+        }
+        
+        .sight-mini {
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+            color: var(--ios-blue);
+            margin-top: 6px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        
+        .sight-icon {
+            margin-right: 8px;
+            font-size: 16px;
+        }
+
+        /* --- Modal / Sheet --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.4);
+            z-index: 2000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .sheet {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: var(--ios-bg);
+            border-radius: 20px 20px 0 0;
+            padding: 20px;
+            padding-bottom: calc(20px + var(--safe-area-bottom));
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            z-index: 2001;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .sheet.active {
+            transform: translateY(0);
+        }
+
+        .sheet-handle {
+            width: 40px;
+            height: 5px;
+            background: #C6C6C8;
+            border-radius: 3px;
+            margin: 0 auto 20px;
+        }
+
+        .sheet-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .sheet-title {
+            font-size: 22px;
+            font-weight: 700;
+            margin: 0;
+            flex: 1;
+            padding-right: 10px;
+        }
+
+        .sheet-meta {
+            font-size: 14px;
+            color: var(--ios-gray);
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .sheet-content-block {
+            background: var(--ios-card);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 15px;
+        }
+
+        .sheet-label {
+            font-size: 13px;
+            color: var(--ios-gray);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        .sheet-text {
+            font-size: 16px;
+            line-height: 1.5;
+            color: #000;
+            margin: 0;
+        }
+
+        .facts-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .facts-list li {
+            position: relative;
+            padding-left: 20px;
+            margin-bottom: 8px;
+            font-size: 15px;
+            line-height: 1.4;
+        }
+
+        .facts-list li::before {
+            content: "•";
+            color: var(--ios-blue);
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+        }
+
+        .sheet-actions {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn-full {
+            background: var(--ios-blue);
+            color: white;
+            border: none;
+            width: 100%;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            display: block;
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--ios-red);
+            border: none;
+            width: 100%;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            margin-top: 50px;
+            color: var(--ios-gray);
+            padding: 20px;
+        }
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-top">
+            <div style="width: 60px;"></div>
+            <h1 id="header-title">Маршрут</h1>
+            <label class="upload-btn">
+                JSON
+                <input type="file" id="file-input" accept=".json">
+            </label>
+        </div>
+
+        <!-- Route Summary (Points Only) -->
+        <div id="route-summary-container">
+            <div class="summary-label">Маршрут</div>
+            <div class="summary-line" id="route-summary-text"></div>
+        </div>
+        
+        <!-- Navigation Button -->
+        <div class="nav-btn-container">
+            <a href="#" id="full-route-link" class="nav-btn" target="_blank">
+                <span>🧭</span> Построить маршрут в Яндекс
+            </a>
+        </div>
+    </header>
+
+    <div id="route-list">
+        <div class="empty-state">
+            <span class="empty-icon">🗺️</span>
+            <p>Загрузите JSON файл с маршрутом,<br>чтобы начать просмотр.</p>
+        </div>
+    </div>
+
+    <!-- Detail Sheet Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="closeModal()"></div>
+    <div class="sheet" id="detail-sheet">
+        <div class="sheet-handle"></div>
+        
+        <div class="sheet-header">
+            <h2 class="sheet-title" id="sheet-title">Название</h2>
+        </div>
+        
+        <div class="sheet-meta" id="sheet-meta"></div>
+        
+        <div id="sheet-content-area">
+            <!-- Dynamic Content -->
+        </div>
+
+        <div class="sheet-actions" id="sheet-actions">
+            <!-- Buttons -->
+        </div>
+
+        <button class="btn-outline" onclick="closeModal()">Закрыть</button>
+    </div>
+
+    <script>
+        let routeData = null;
+
+        // --- PWA Service Worker Registration (Blob Method for Single File) ---
+        if ('serviceWorker' in navigator) {
+            const swCode = `
+                const CACHE_NAME = 'route-v1';
+                self.addEventListener('install', event => {
+                    event.waitUntil(self.skipWaiting());
+                });
+                self.addEventListener('activate', event => {
+                    event.waitUntil(self.clients.claim());
+                });
+                self.addEventListener('fetch', event => {
+                    event.respondWith(
+                        caches.match(event.request).then(response => {
+                            return response || fetch(event.request);
+                        })
+                    );
+                });
+            `;
+            const blob = new Blob([swCode], {type: 'application/javascript'});
+            const swUrl = URL.createObjectURL(blob);
+            
+            navigator.serviceWorker.register(swUrl)
+                .then(reg => console.log('SW registered:', reg.scope))
+                .catch(err => console.log('SW registration failed:', err));
+        }
+
+        // Обработчик загрузки файла
+        document.getElementById('file-input').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const json = JSON.parse(e.target.result);
+                    loadRoute(json);
+                } catch (err) {
+                    alert('Ошибка чтения JSON файла. Проверьте формат.');
+                    console.error(err);
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        function loadRoute(data) {
+            routeData = data;
+            
+            // Обновляем заголовок
+            document.getElementById('header-title').textContent = data.route_info.name;
+            
+            const listContainer = document.getElementById('route-list');
+            const summaryContainer = document.getElementById('route-summary-container');
+            const summaryText = document.getElementById('route-summary-text');
+            
+            listContainer.innerHTML = '';
+            summaryContainer.classList.remove('visible');
+
+            // 1. Рендерим общую информацию о маршруте
+            const infoCard = document.createElement('div');
+            infoCard.className = 'info-card';
+            infoCard.innerHTML = `
+                <div class="info-title">Общая информация</div>
+                <div class="info-value">${data.route_info.duration}</div>
+                <div class="info-desc">${data.route_info.description}</div>
+                <div style="margin-top:10px; font-size:14px; color:var(--ios-gray)">Старт: ${data.route_info.start_point}</div>
+            `;
+            listContainer.appendChild(infoCard);
+
+            // 2. Формируем строку схемы маршрута (ТОЛЬКО ТОЧКИ)
+            let summaryParts = [];
+            let routeCoords = [];
+
+            data.route_elements.forEach((item, index) => {
+                // Добавляем в схему ТОЛЬКО если это точка
+                if (item.type === 'point') {
+                    summaryParts.push(item.name);
+                    if (item.coordinates) {
+                        routeCoords.push(`${item.coordinates.latitude},${item.coordinates.longitude}`);
+                    }
+                }
+
+                // Рендеринг карточек в основной список (все элементы)
+                renderListItem(item, index, listContainer);
+            });
+
+            // Вставляем строку схемы
+            if (summaryParts.length > 0) {
+                summaryText.innerHTML = summaryParts.join('<span class="summary-separator"> --- </span>');
+                summaryContainer.classList.add('visible');
+            }
+
+            // 3. Обновляем кнопку общего маршрута
+            const navBtn = document.getElementById('full-route-link');
+            if (routeCoords.length > 1) {
+                const yandexRouteString = routeCoords.map(c => `~${c}`).join('');
+                navBtn.href = `https://yandex.ru/maps/?rtext=${yandexRouteString}`;
+                navBtn.classList.add('active');
+            } else {
+                navBtn.classList.remove('active');
+                navBtn.href = "#";
+            }
+        }
+
+        function renderListItem(item, index, container) {
+            const isPoint = item.type === 'point';
+            const card = document.createElement('div');
+            card.className = 'card';
+            
+            // Находим достопримечательности для этой точки/отрезка
+            const sights = routeData.sights ? routeData.sights.filter(s => s.related_route_element_id === item.id) : [];
+            
+            let sightsHtml = '';
+            if (sights.length > 0) {
+                sightsHtml = `<div class="sights-preview">
+                    <div style="font-size:12px; color:var(--ios-gray); text-transform:uppercase; font-weight:600; margin-bottom:4px;">Достопримечательности:</div>
+                    ${sights.map(s => `
+                        <div class="sight-mini" onclick="event.stopPropagation(); openModal('sight', '${s.id}')">
+                            <span class="sight-icon">🏛️</span> ${s.name}
+                        </div>
+                    `).join('')}
+                </div>`;
+            }
+
+            let metaInfo = '';
+            let mapLinkHtml = '';
+
+            // Логика ссылок "На карте"
+            if (item.type === 'segment') {
+                metaInfo = `${item.distance_km} км • ~${item.estimated_time_min} мин • 🚗`;
+                // Для отрезка ссылку на карту делаем на начало отрезка
+                const startPoint = routeData.route_elements.find(e => e.id === item.start_point_id);
+                if (startPoint && startPoint.coordinates) {
+                    // Текст ссылки изменен на "На карте"
+                    mapLinkHtml = createMapLink(startPoint.coordinates.latitude, startPoint.coordinates.longitude, "На карте");
+                }
+            } else {
+                metaInfo = item.parking_info || 'Парковка';
+                if (item.coordinates) {
+                    // Текст ссылки изменен на "На карте"
+                    mapLinkHtml = createMapLink(item.coordinates.latitude, item.coordinates.longitude, "На карте");
+                }
+            }
+
+            card.innerHTML = `
+                <div class="card-header">
+                    <span class="card-title">${item.name}</span>
+                    <span class="badge ${isPoint ? 'badge-point' : 'badge-segment'}">${isPoint ? 'Точка' : 'Переезд'}</span>
+                </div>
+                <div class="card-subtitle">${metaInfo}</div>
+                <div class="card-desc">${item.description}</div>
+                ${sightsHtml}
+                ${mapLinkHtml ? `<div class="action-row">${mapLinkHtml}</div>` : ''}
+            `;
+
+            // Клик по карточке открывает детали
+            card.onclick = (e) => {
+                if (!e.target.closest('.map-link') && !e.target.closest('.sight-mini')) {
+                    openModal('route_element', item.id);
+                }
+            };
+            
+            container.appendChild(card);
+        }
+
+        function createMapLink(lat, lon, text) {
+            const url = `https://yandex.ru/maps/?pt=${lon},${lat}&z=16`;
+            return `<a href="${url}" target="_blank" class="map-link" onclick="event.stopPropagation()">
+                <span>📍</span> ${text}
+            </a>`;
+        }
+
+        // Логика модального окна
+        function openModal(type, id) {
+            const sheet = document.getElementById('detail-sheet');
+            const overlay = document.getElementById('modal-overlay');
+            const titleEl = document.getElementById('sheet-title');
+            const metaEl = document.getElementById('sheet-meta');
+            const contentEl = document.getElementById('sheet-content-area');
+            const actionsEl = document.getElementById('sheet-actions');
+
+            let dataItem;
+            let isSight = false;
+
+            if (type === 'route_element') {
+                dataItem = routeData.route_elements.find(i => i.id === id);
+            } else {
+                dataItem = routeData.sights.find(i => i.id === id);
+                isSight = true;
+            }
+
+            if (!dataItem) return;
+
+            // Заполнение заголовка
+            titleEl.textContent = dataItem.name;
+
+            // Заполнение мета-информации
+            let metaHtml = '';
+            let lat = null, lon = null;
+
+            if (isSight) {
+                lat = dataItem.coordinates.latitude;
+                lon = dataItem.coordinates.longitude;
+                metaHtml = `<span>📍 Координаты: ${lat}, ${lon}</span>`;
+            } else {
+                if (dataItem.type === 'segment') {
+                    metaHtml = `<span>🚗 ${dataItem.distance_km} км</span> <span>⏱ ~${dataItem.estimated_time_min} мин</span>`;
+                    const startPoint = routeData.route_elements.find(e => e.id === dataItem.start_point_id);
+                    if(startPoint && startPoint.coordinates) {
+                        lat = startPoint.coordinates.latitude;
+                        lon = startPoint.coordinates.longitude;
+                    }
+                } else {
+                    metaHtml = `<span>🅿️ ${dataItem.parking_info || 'Нет данных'}</span>`;
+                    if (dataItem.coordinates) {
+                        lat = dataItem.coordinates.latitude;
+                        lon = dataItem.coordinates.longitude;
+                    }
+                }
+            }
+            metaEl.innerHTML = metaHtml;
+
+            // Заполнение контента
+            let html = '';
+            if (dataItem.description) html += createContentBlock('Описание', dataItem.description);
+            
+            if (isSight) {
+                if (dataItem.history) html += createContentBlock('История места', dataItem.history);
+                if (dataItem.fun_facts && dataItem.fun_facts.length > 0) {
+                    html += `<div class="sheet-content-block">
+                        <div class="sheet-label">Интересные факты</div>
+                        <ul class="facts-list">
+                            ${dataItem.fun_facts.map(f => `<li>${f}</li>`).join('')}
+                        </ul>
+                    </div>`;
+                }
+                if (dataItem.how_to_find) html += createContentBlock('Инструкция: как найти', dataItem.how_to_find);
+            } 
+            
+            if (!isSight && dataItem.type === 'point') {
+                if (dataItem.parking_info) html += createContentBlock('Где оставить машину', dataItem.parking_info);
+            }
+            if (!isSight && dataItem.type === 'segment') {
+                if (dataItem.transport_type) html += createContentBlock('Тип транспорта', dataItem.transport_type === 'auto' ? 'Автомобиль' : 'Пешком');
+            }
+
+            contentEl.innerHTML = html;
+
+            // Кнопки действий
+            actionsEl.innerHTML = '';
+            if (lat && lon) {
+                const mapUrl = `https://yandex.ru/maps/?pt=${lon},${lat}&z=17`;
+                const btn = document.createElement('a');
+                btn.href = mapUrl;
+                btn.target = "_blank";
+                btn.className = "btn-full";
+                btn.innerHTML = "🗺️ Открыть в Яндекс.Картах";
+                btn.onclick = (e) => e.stopPropagation();
+                actionsEl.appendChild(btn);
+            }
+
+            // Показать
+            overlay.classList.add('active');
+            sheet.classList.add('active');
+        }
+
+        function createContentBlock(label, text) {
+            if (!text) return '';
+            return `<div class="sheet-content-block">
+                <div class="sheet-label">${label}</div>
+                <div class="sheet-text">${text}</div>
+            </div>`;
+        }
+
+        function closeModal() {
+            document.getElementById('detail-sheet').classList.remove('active');
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+
+    </script>
+</body>
+</html>
